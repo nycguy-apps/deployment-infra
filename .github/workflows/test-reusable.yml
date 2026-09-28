@@ -1,0 +1,26 @@
+name: Test reusable deployment workflow
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/deploy-cloudflare.yml"
+      - ".github/workflows/test-reusable.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-reusable:
+    uses: nycguy-apps/deployment-infra/.github/workflows/deploy-cloudflare.yml@main
+    with:
+      install_command: ""
+      lint_command: ""
+      typecheck_command: ""
+      test_command: ""
+      build_command: ""
+      smoke_command: ""
+      deploy_command: "npx --yes wrangler@4 whoami"
+      healthcheck_url: ""
+    secrets: inherit
