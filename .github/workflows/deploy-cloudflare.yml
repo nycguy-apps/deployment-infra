@@ -53,6 +53,11 @@ on:
         required: false
         type: string
         default: ""
+      smoke_continue_on_error:
+        description: Allow external/live smoke failures without blocking deployment
+        required: false
+        type: boolean
+        default: false
       deploy_command:
         description: Cloudflare deployment command
         required: false
@@ -121,6 +126,7 @@ jobs:
 
       - name: Smoke/integration test
         if: ${{ inputs.smoke_command != '' }}
+        continue-on-error: ${{ inputs.smoke_continue_on_error }}
         run: ${{ inputs.smoke_command }}
 
       - name: Deploy to Cloudflare
