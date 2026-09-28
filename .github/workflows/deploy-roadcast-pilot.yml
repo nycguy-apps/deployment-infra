@@ -15,12 +15,13 @@ jobs:
     uses: nycguy-apps/deployment-infra/.github/workflows/deploy-cloudflare.yml@main
     with:
       checkout_repository: "nycguy/roadcast"
-      checkout_ref: "fc70c09d44488b8f99ee28b1995f37f9e3c2cafd"
+      checkout_ref: "63a15e1f1821f3c1c4ca8e888c4c402b264acc0a"
       lint_command: ""
       typecheck_command: "npm run check"
       test_command: "npm test"
       build_command: "VITE_BASE_PATH=/ VITE_ROADCAST_PROXY_URL=https://roadcast-api.mikewiley-nyc.workers.dev npm run build"
       smoke_command: "npm run smoke:live"
-      deploy_command: "npx --yes wrangler@4 deploy && curl --fail --silent --show-error --retry 5 --retry-delay 3 https://roadcast-api.mikewiley-nyc.workers.dev/ | grep -q RoadCast"
+      deploy_command: "npx --yes wrangler@4 deploy"
+      post_deploy_command: "curl --fail --silent --show-error --retry 8 --retry-delay 3 --retry-all-errors -H 'Sec-Fetch-Mode: navigate' -H 'Sec-Fetch-Site: none' https://roadcast-api.mikewiley-nyc.workers.dev/ | grep -q RoadCast"
       healthcheck_url: "https://roadcast-api.mikewiley-nyc.workers.dev/health"
     secrets: inherit
