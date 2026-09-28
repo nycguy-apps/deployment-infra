@@ -27,6 +27,27 @@ jobs:
             -H 'Sec-Fetch-Site: none' \
             https://roadcast-api.mikewiley-nyc.workers.dev/ | grep -q RoadCast
 
+      - name: Verify same-origin provider proxy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H 'Sec-Fetch-Site: same-origin' \
+            --get \
+            --data-urlencode 'url=https://api.open-meteo.com/v1/forecast?latitude=40.7&longitude=-74&hourly=temperature_2m&forecast_days=1' \
+            https://roadcast-api.mikewiley-nyc.workers.dev/v1/fetch | grep -q '"hourly"'
+
+      - name: Verify arbitrary cross-origin proxy use stays blocked
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            -H 'Origin: https://example.com' \
+            --get \
+            --data-urlencode 'url=https://api.open-meteo.com/v1/forecast?latitude=40.7&longitude=-74&hourly=temperature_2m&forecast_days=1' \
+            https://roadcast-api.mikewiley-nyc.workers.dev/v1/fetch)
+          test "$status" = "403"
+
       - name: Record plain HTTP root status
         shell: bash
         run: |
