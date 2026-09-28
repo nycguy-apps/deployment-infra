@@ -1,0 +1,136 @@
+name: Reusable Cloudflare deploy
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        description: Node.js major version
+        required: false
+        type: string
+        default: "22"
+      working_directory:
+        description: App working directory
+        required: false
+        type: string
+        default: "."
+      install_command:
+        description: Dependency install command
+        required: false
+        type: string
+        default: "npm ci"
+      lint_command:
+        description: Optional lint command
+        required: false
+        type: string
+        default: "npm run lint --if-present"
+      typecheck_command:
+        description: Optional type-check command
+        required: false
+        type: string
+        default: "npm run typecheck --if-present"
+      test_command:
+        description: Optional test command
+        required: false
+        type: string
+        default: "npm test --if-present -- --run"
+      build_command:
+        description: Production build command
+        required: false
+        type: string
+        default: "npm run build"
+      smoke_command:
+        description: Optional pre-deploy integration/smoke command
+        required: false
+        type: string
+        default: ""
+      deploy_command:
+        description: Cloudflare deployment command
+        required: false
+        type: string
+        default: "npx --yes wrangler@4 deploy"
+      healthcheck_url:
+        description: Optional public URL verified after deployment
+        required: false
+        type: string
+        default: ""
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: Install dependencies
+        run: ${{ inputs.install_command }}
+
+      - name: Lint
+        if: ${{ inputs.lint_command != '' }}
+        run: ${{ inputs.lint_command }}
+
+      - name: Type-check
+        if: ${{ inputs.typecheck_command != '' }}
+        run: ${{ inputs.typecheck_command }}
+
+      - name: Test
+        if: ${{ inputs.test_command != '' }}
+        run: ${{ inputs.test_command }}
+
+      - name: Build
+        if: ${{ inputs.build_command != '' }}
+        run: ${{ inputs.build_command }}
+
+      - name: Smoke/integration test
+        if: ${{ inputs.smoke_command != '' }}
+        run: ${{ inputs.smoke_command }}
+
+      - name: Deploy to Cloudflare
+        run: ${{ inputs.deploy_command }}
+
+      - name: Verify production
+        if: ${{ inputs.healthcheck_url != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Checking ${{ inputs.healthcheck_url }}"
+          curl --fail --silent --show-error \
+            --retry 5 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            --max-time 30 \
+            "${{ inputs.healthcheck_url }}" >/dev/null
+
+      - name: Deployment summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Cloudflare deployment"
+            echo
+            echo "- Repository: \`${GITHUB_REPOSITORY}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            if [ -n "${{ inputs.healthcheck_url }}" ]; then
+              echo "- Health check: ${{ inputs.healthcheck_url }}"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
