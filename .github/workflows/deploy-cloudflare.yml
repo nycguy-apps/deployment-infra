@@ -58,6 +58,11 @@ on:
         required: false
         type: string
         default: "npx --yes wrangler@4 deploy"
+      post_deploy_command:
+        description: Optional command run after deployment and before the health check
+        required: false
+        type: string
+        default: ""
       healthcheck_url:
         description: Optional public URL verified after deployment
         required: false
@@ -120,6 +125,10 @@ jobs:
 
       - name: Deploy to Cloudflare
         run: ${{ inputs.deploy_command }}
+
+      - name: Post-deploy verification
+        if: ${{ inputs.post_deploy_command != '' }}
+        run: ${{ inputs.post_deploy_command }}
 
       - name: Verify production
         if: ${{ inputs.healthcheck_url != '' }}
